@@ -10,7 +10,7 @@ class ConsumoService:
         validar_consumo(data["consumo_mensal"])
 
         consumo = Consumo(**data)
-        cls.session.add(consumo)  # ✅ corrigido
+        cls.session.add(consumo)
         cls.session.commit()
 
         return "Consumo registrado com sucesso!"

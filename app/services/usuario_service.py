@@ -1,30 +1,47 @@
-from app.models.models import Usuario
-from app.database.database import SessionLocal
+from app.models.models import *
+from app.database.database import SessionaLocal
+from werkzeug.security import *
+from app.exceptions.exceptions import *
+
 
 class UsuarioService:
-    session = SessionLocal()
+
+    session = SessionaLocal()
 
     @classmethod
-    def create(cls, data):
-        usuario_existente = cls.session.query(Usuario).filter_by(email=data["email"]).first()
-        
-        if usuario_existente:
-            return {"erro": "Email já cadastrado"}
-
-        usuario = Usuario(**data)
-        cls.session.add(usuario)
+    def create(cls, usuario: dict) -> str:
+       
+        usuario['password'] = generate_password_hash(usuario.get('password'))
+        n_usuario = Usuario(**usuario)
+        cls.session.add(n_usuario)
         cls.session.commit()
+        return "Usuário cadastrado com sucesso!"
+    
+    @classmethod
+    def login(cls, username: str, password: str) -> bool:
 
-        return {"mensagem": "Usuário criado com sucesso!"}
+        usuario = cls.session.query(Usuario).where(Usuario.username == username).first()
+        if not usuario:
+            raise UserNotFoundError(username)
+        elif check_password_hash(usuario.password, password):
+            return True
+        return False
 
     @classmethod
     def find_all(cls):
-        usuarios = cls.session.query(Usuario).all()
+        session = SessionaLocal()
+
+        usuarios = session.query(Usuario).all()
+        session.close()
+
         return [u.to_dict() for u in usuarios]
 
     @classmethod
     def find_by_id(cls, usuario_id):
-        usuario = cls.session.query(Usuario).get(usuario_id)
+        session = SessionaLocal()
+
+        usuario = session.get(Usuario, usuario_id)
+        session.close()
 
         if not usuario:
             return {"erro": "Usuário não encontrado"}
@@ -33,24 +50,16 @@ class UsuarioService:
 
     @classmethod
     def delete(cls, usuario_id):
-        usuario = cls.session.query(Usuario).get(usuario_id)
+        session = SessionaLocal()
+
+        usuario = session.get(Usuario, usuario_id)
 
         if not usuario:
+            session.close()
             return {"erro": "Usuário não encontrado"}
 
-        cls.session.delete(usuario)
-        cls.session.commit()
+        session.delete(usuario)
+        session.commit()
+        session.close()
 
         return {"mensagem": "Usuário deletado com sucesso"}
-
-    @classmethod
-    def login(cls, email, senha):
-        usuario = cls.session.query(Usuario).filter_by(email=email).first()
-
-        if not usuario or usuario.senha != senha:
-            return {"erro": "Email ou senha inválidos"}
-
-        return {
-            "mensagem": "Login realizado com sucesso",
-            "usuario": usuario.to_dict()
-        }
